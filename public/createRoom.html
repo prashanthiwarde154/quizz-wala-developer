@@ -18,34 +18,28 @@
       height: 100vh;
       text-align: center;
     }
-    p{
-      font-size: 2rem;
-    }
 
     h2 {
-      font-size: 3rem;
+      font-size: 2rem;
       margin-bottom: 10px;
     }
 
     #roomCodeDisplay {
-      font-size: 4rem;
+      font-size: 2rem;
       font-weight: bold;
       color: #ffeb3b;
     }
 
     label, select {
       margin-top: 20px;
-      font-size: 2.1rem;
+      font-size: 1.1rem;
     }
 
     select {
       padding: 8px;
-      font-size: 20px;
+      font-size: 1rem;
       border-radius: 5px;
       border: none;
-      font-weight: 700;
-      height: 5rem;
-      width: 50%;
     }
 
     button {
@@ -84,11 +78,11 @@
   <button id="startButton" style="display:none">🚀 Start Game</button>
 
   <script>
-    const socket = io();
+    const socket = io("http://localhost:5000");
 
     async function createRoom() {
       try {
-        const response = await fetch('/api/create-room', {
+        const response = await fetch('http://localhost:5000/api/create-room', {
           method: 'POST',
         });
 
