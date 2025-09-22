@@ -211,47 +211,44 @@ app.post('/api/create-room', (req, res) => {
   console.log('✅ Room created:', roomCode);
   res.json({ roomCode });
 });
+  io.on("connection", (socket) => {
+  console.log("⚡ User connected:", socket.id);
 
-io.on('connection', (socket) => {
-  console.log('⚡ User connected:', socket.id);
-
-  // Legacy join-room
-  socket.on('join-room', (roomCode) => {
-    socket.join(roomCode);
-    if (!roomUsers[roomCode]) {
-      roomUsers[roomCode] = [];
-    }
-    if (!roomUsers[roomCode].includes(socket.id)) {
-      roomUsers[roomCode].push(socket.id);
-    }
-    socket.to(roomCode).emit('user-joined', socket.id);
-
-    if (roomUsers[roomCode].length === 2) {
-      io.to(roomCode).emit('room-ready');
-    }
-  });
-
-  // Join with username
+  // Handle user joining a room
   socket.on("joinRoom", ({ room, username }) => {
     socket.join(room);
     socket.username = username;
 
-    if (!roomUsers[room]) {
-      roomUsers[room] = [];
-    }
-    if (!roomUsers[room].includes(socket.id)) {
-      roomUsers[room].push(socket.id);
-    }
+     if (!roomUsers[room]) roomUsers[room] = [];
+  if (!roomUsers[room].includes(socket.id)) roomUsers[room].push(socket.id);
 
-    socket.to(room).emit("userJoined", { joinedUsername: username });
+    console.log(`User ${username} joined room ${room}`);
 
+    // Send updated user list to everyone in the room
     const clients = Array.from(io.sockets.adapter.rooms.get(room) || []);
-    const usernames = clients.map((id) => {
-      return io.sockets.sockets.get(id)?.username || "User";
-    });
+    const usernames = clients.map(id => io.sockets.sockets.get(id)?.username || "User");
 
     io.to(room).emit("roomUsers", usernames);
+
+    // If 2 players joined, mark room ready
+    if (usernames.length === 2) {
+      io.to(room).emit("room-ready");
+    }
   });
+
+  // Handle manual request from client to get room users
+  socket.on("get-room-users", ({ room }) => {
+    const clients = Array.from(io.sockets.adapter.rooms.get(room) || []);
+    const usernames = clients.map(id => io.sockets.sockets.get(id)?.username || "User");
+
+    // ✅ send to whole room instead of just one user
+    io.to(room).emit("roomUsers", usernames);
+  });
+
+
+
+
+
 
   // Start game
   socket.on("start-game", ({ roomCode, category }) => {
@@ -330,7 +327,31 @@ io.on('connection', (socket) => {
     }
 
     
-if (roomDataMap[roomCode]) {
+// if (roomDataMap[roomCode]) {
+//   const players = (roomUsers[roomCode] || []).map(
+//     id => io.sockets.sockets.get(id)?.username || "User"
+//   );
+
+//   const ans1 = answersArray.find(a => a.username === players[0]);
+//   const ans2 = answersArray.find(a => a.username === players[1]);
+
+//   const existing = roomDataMap[roomCode].allAnswers.find(a => a.question === question.question);
+
+//   if (existing) {
+//     // Update existing entry
+//     existing.user1Answer = ans1 ? ans1.selectedOption : "";
+//     existing.user2Answer = ans2 ? ans2.selectedOption : "";
+//   } else {
+//     // Create new entry
+//     roomDataMap[roomCode].allAnswers.push({
+//       question: question.question,
+//       correctAnswer: question.answer,
+//       user1Answer: ans1 ? ans1.selectedOption : "",
+//       user2Answer: ans2 ? ans2.selectedOption : ""
+//     });
+//   }
+// }
+  if (roomDataMap[roomCode]) {
   const players = (roomUsers[roomCode] || []).map(
     id => io.sockets.sockets.get(id)?.username || "User"
   );
@@ -341,11 +362,9 @@ if (roomDataMap[roomCode]) {
   const existing = roomDataMap[roomCode].allAnswers.find(a => a.question === question.question);
 
   if (existing) {
-    // Update existing entry
     existing.user1Answer = ans1 ? ans1.selectedOption : "";
     existing.user2Answer = ans2 ? ans2.selectedOption : "";
   } else {
-    // Create new entry
     roomDataMap[roomCode].allAnswers.push({
       question: question.question,
       correctAnswer: question.answer,
@@ -354,6 +373,7 @@ if (roomDataMap[roomCode]) {
     });
   }
 }
+
 
     if (answersArray.length === 2) {
       currentQuestionIndexMap[roomCode]++;
@@ -376,20 +396,9 @@ if (roomDataMap[roomCode]) {
     }
   });
 
-  socket.on('disconnect', () => {
-    console.log('❌ User disconnected:', socket.id);
-    for (const roomCode in roomUsers) {
-      const index = roomUsers[roomCode].indexOf(socket.id);
-      if (index !== -1) {
-        roomUsers[roomCode].splice(index, 1);
-        if (roomUsers[roomCode].length === 0) {
-          delete roomUsers[roomCode];
-          delete userAnswers[roomCode];
-          delete currentQuestionIndexMap[roomCode];
-        }
-        break;
-      }
-    }
+   // Handle disconnection
+  socket.on("disconnect", () => {
+    console.log("❌ User disconnected:", socket.id);
   });
 });
 

@@ -64,6 +64,10 @@
   <p>Share this room code with your friend:</p>
   <p id="roomCodeDisplay">Generating...</p>
 
+  <!-- Status + user list -->
+  <p id="status">Waiting for another player to join...</p>
+  <p id="userList"></p>
+
   <label for="category">Choose Quiz Category:</label><br>
   <select id="category">
     <option value="Computer Science">Computer Science</option>
@@ -78,60 +82,59 @@
   <button id="startButton" style="display:none">🚀 Start Game</button>
 
   <script>
-    //const socket = io("https://quizz-wala.onrender.com");
     const socket = io(window.location.origin);
 
     async function createRoom() {
       try {
-        // const response = await fetch('http://localhost:5000/api/create-room', {
-        //   method: 'POST',
-        // });
-        // Automatically use the deployed backend (works locally and on Render)
-          const response = await fetch(`${window.location.origin}/api/create-room`, {
-            method: 'POST',
-          });
-
-
-        if (!response.ok) {
-          const err = await response.text();
-          alert("Server error: " + err);
-          return;
-        }
-
+        const response = await fetch(`${window.location.origin}/api/create-room`, { method: 'POST' });
         const data = await response.json();
         const roomCode = data.roomCode;
 
         document.getElementById('roomCodeDisplay').innerText = roomCode;
-
         localStorage.setItem("roomCode", roomCode);
         localStorage.setItem("isUser1", "true");
 
-        socket.emit("join-room", roomCode);
+        // Join the room
+        socket.emit("joinRoom", { room: roomCode, username: "User1" });
         console.log("User1 joined room:", roomCode);
 
-        // Show start button when second player joins
-        socket.on("room-ready", () => {
-          console.log("Both users joined. Showing start button.");
-          const startBtn = document.getElementById("startButton");
-          startBtn.style.display = "inline-block";
-        });
+        // Ask server for current users in the room
+        socket.emit("get-room-users", { room: roomCode });
 
       } catch (err) {
         alert("Error: " + err.message);
       }
     }
 
+    // Global listener: room-ready
+    socket.on("room-ready", () => {
+      document.getElementById("status").textContent = "✅ Both players joined!";
+      const isUser1 = localStorage.getItem("isUser1") === "true";
+      if (isUser1) {
+        console.log("Both users joined. Showing Start button for User1.");
+        document.getElementById("startButton").style.display = "inline-block";
+      }
+    });
+
+    // Receive current users immediately
+    socket.on("roomUsers", (usernames) => {
+      console.log("Users in room:", usernames);
+      document.getElementById("userList").textContent = "Players: " + usernames.join(", ");
+
+      const isUser1 = localStorage.getItem("isUser1") === "true";
+      if (isUser1 && usernames.length === 2) {
+        document.getElementById("status").textContent = "✅ Both players joined!";
+        document.getElementById("startButton").style.display = "inline-block";
+      }
+    });
+
+    // Start game
     function startGame() {
       const roomCode = localStorage.getItem("roomCode");
       const category = document.getElementById("category").value;
-
       localStorage.setItem("selectedCategory", category);
 
-      socket.emit("start-game", {
-        roomCode,
-        category,
-      });
-
+      socket.emit("start-game", { roomCode, category });
       window.location.href = `quiz.html?room=${roomCode}&category=${encodeURIComponent(category)}`;
     }
 

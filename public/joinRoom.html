@@ -1,44 +1,3 @@
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Join Room</title>
-</head>
-<body>
-  <h1>Room Joined</h1>
-  <p id="status">Waiting for another player to join...</p>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-
-    // Get room code from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const roomCode = urlParams.get('room');
-
-    if (!roomCode) {
-      alert('Room code missing');
-      window.location.href = '/';
-    }
-
-    // Join room
-    socket.emit('join-room', roomCode);
-
-    // When another player joins
-    socket.on('user-joined', (userId) => {
-      console.log('Another player joined:', userId);
-      document.getElementById('status').innerText = 'Player joined. Game will start soon...';
-    });
-      socket.on("game-started", (category) => {
-    localStorage.setItem("selectedCategory", category);
-    window.location.href = "quiz.html";
-  });
-  </script>
-</body>
-</html> -->
-
-<!-- Second code -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -87,7 +46,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io("http://localhost:5000"); // Make sure backend matches port
+    const socket = io(window.location.origin);
 
     const urlParams = new URLSearchParams(window.location.search);
     const roomCode = urlParams.get('room');
@@ -97,13 +56,19 @@
       window.location.href = '/';
     }
 
-    // Join the room
-    socket.emit('join-room', roomCode);
+    // ✅ Correct emit (must match server + include username)
+    socket.emit("joinRoom", { room: roomCode, username: "User2" });
+    console.log("User2 joined room:", roomCode);
 
-    // Listen when another player joins
-    socket.on('user-joined', (userId) => {
-      console.log('Player joined:', userId);
-      document.getElementById('status').innerText = 'Another player joined. Game will start soon...';
+    // Listen for room users update
+    socket.on("roomUsers", (usernames) => {
+      console.log("Users in room:", usernames);
+      document.getElementById("status").innerText = `Players: ${usernames.join(", ")}`;
+    });
+
+    // Listen for room ready
+    socket.on("room-ready", () => {
+      document.getElementById("status").innerText = "Both players are here. Waiting for host to start...";
     });
 
     // Listen for game start
@@ -116,9 +81,8 @@
       localStorage.setItem("isUser1", "false");
 
       // Navigate to quiz
-      window.location.href = `quiz.html?room=${roomCode}&category=${category}`;
+      window.location.href = `quiz.html?room=${roomCode}&category=${encodeURIComponent(category)}`;
     });
   </script>
 </body>
 </html>
-
