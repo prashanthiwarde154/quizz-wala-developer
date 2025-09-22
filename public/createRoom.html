@@ -78,13 +78,19 @@
   <button id="startButton" style="display:none">🚀 Start Game</button>
 
   <script>
-    const socket = io("https://quizz-wala.onrender.com");
+    //const socket = io("https://quizz-wala.onrender.com");
+    const socket = io(window.location.origin);
 
     async function createRoom() {
       try {
-        const response = await fetch('http://localhost:5000/api/create-room', {
-          method: 'POST',
-        });
+        // const response = await fetch('http://localhost:5000/api/create-room', {
+        //   method: 'POST',
+        // });
+        // Automatically use the deployed backend (works locally and on Render)
+          const response = await fetch(`${window.location.origin}/api/create-room`, {
+            method: 'POST',
+          });
+
 
         if (!response.ok) {
           const err = await response.text();
